@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auftrag erstellen</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;font-family:'Outfit',system-ui}
+body{margin:0;min-height:100vh;background: radial-gradient(1200px at 20% -10%, #FFE9D0 0%, #F6F1EB 50%, #E8E6FF 100%);display:flex;align-items:center;justify-content:center;padding:20px}
+.card{width:100%;max-width:520px;background:#fff;border-radius:28px;box-shadow:0 20px 60px rgba(0,0,0,.08);padding:32px;border:1px solid rgba(0,0,0,.05)}
+h1{margin:0 0 6px;font-size:28px;font-weight:800;letter-spacing:-.5px}
+.sub{color:#8A8A8A;font-size:14px;margin-bottom:28px}
+label{display:block;font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#9A9A9A;margin:16px 0 6px}
+input,textarea{background:#F8F6F3;border:1.5px solid #EEE9E2;border-radius:14px;padding:14px 16px;width:100%;font-size:15px;outline:none;transition:.2s}
+input:focus,textarea:focus{border-color:#2B2B2B;background:#fff;box-shadow:0 0 0 4px rgba(0,0,0,.06)}
+textarea{resize:none;min-height:110px}
+.hint{font-size:11px;color:#B8B2AA;margin-top:6px}
+button.main{width:100%;margin-top:24px;padding:16px;background:#111;color:#fff;border:none;border-radius:16px;font-weight:800;font-size:16px;cursor:pointer;transition:.2s}
+button.main:hover{transform:translateY(-1px);box-shadow:0 10px 20px rgba(0,0,0,.15)}
+button.main:active{transform:translateY(0)}
+#msg{text-align:center;margin-top:14px;font-weight:600;color:#1FA47A}
+#adminView{display:none}
+.admin-card{background:#fff;border-radius:20px;padding:18px;margin:14px 0;border:1px solid #EEE;box-shadow:0 4px 20px rgba(0,0,0,.04)}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.smallBtn{padding:10px 14px;border-radius:12px;border:1px solid #EEE;background:#fff;cursor:pointer;font-weight:600}
+.deleteBtn{background:#FFE2E2;color:#B42318;border:none;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;width:auto;margin-top:10px}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <!-- HAUPTANSICHT -->
+  <div id="mainView">
+    <h1>Neuer Auftrag</h1>
+    <div class="sub">Fülle die Felder aus und wir kümmern uns darum.</div>
+
+    <label>Dein Name</label>
+    <input id="name" type="text" placeholder="Trage hier deinen Vor- und Nachnamen ein, z.B. Max Mustermann">
+    <div class="hint">Damit wir wissen von wem der Auftrag kommt.</div>
+
+    <label>Wunsch-Datum</label>
+    <input id="date" type="date">
+    <div class="hint">Wähle das Datum an dem du das Ergebnis brauchst.</div>
+
+    <label>Was soll gemacht werden? (Auftrag)</label>
+    <textarea id="task" placeholder="Beschreibe hier ganz genau was zu tun ist, z.B.: Ich brauche 30 Flyer DIN A5 beidseitig für mein Sommerfest mit Text 'Willkommen' und Bild von..."></textarea>
+    <div class="hint">Je genauer du es beschreibst, desto besser wird das Ergebnis.</div>
+
+    <label>Wie möchtest du das Ergebnis erhalten?</label>
+    <input id="result_type" type="text" placeholder="Schreibe hier wie du das Ergebnis haben willst, z.B.: Als Ausdruck auf Papier, per WhatsApp an 0176..., per E-Mail als PDF an max@mail.de, als Abholung">
+    <div class="hint">Du kannst frei schreiben: Papier, WhatsApp, E-Mail, PDF, USB-Stick, Abholung, etc.</div>
+
+    <button id="btn" class="main">Fertig – Auftrag absenden</button>
+    <div id="msg"></div>
+  </div>
+
+  <!-- ADMIN ANSICHT (gleiche Seite) -->
+  <div id="adminView">
+    <div class="topbar">
+      <h1 style="font-size:22px">Alle Anfragen</h1>
+      <button class="smallBtn" onclick="showMain()">← Formular</button>
+    </div>
+    <div id="list">Lade Aufträge...</div>
+  </div>
+</div>
+
+<script>
+const nameEl=document.getElementById('name');
+const mainView=document.getElementById('mainView');
+const adminView=document.getElementById('adminView');
+
+nameEl.addEventListener('input', async ()=>{
+ if(nameEl.value.length<20) return;
+ const r=await fetch('/api/check-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:nameEl.value})});
+ const d=await r.json(); if(d.valid){ localStorage.setItem('admin_code',nameEl.value); showAdmin(); }
+});
+
+function showMain(){ mainView.style.display='block'; adminView.style.display='none'; document.querySelector('h1')?.scrollIntoView(); }
+function showAdmin(){ mainView.style.display='none'; adminView.style.display='block'; load(); }
+
+document.getElementById('btn').onclick=async()=>{
+ const data={name:document.getElementById('name').value.trim(),date:document.getElementById('date').value,task:document.getElementById('task').value.trim(),result_type:document.getElementById('result_type').value.trim()};
+ if(!data.name) return alert('Bitte trage deinen Namen ein.');
+ if(!data.task) return alert('Bitte beschreibe was gemacht werden soll.');
+ if(!data.result_type) return alert('Bitte schreibe wie du das Ergebnis haben willst.');
+ const r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ const j=await r.json();
+ if(j.redirect){ localStorage.setItem('admin_code',data.name); showAdmin(); return; }
+ document.getElementById('msg').innerText='✅ Super, dein Auftrag wurde gesendet! Wir melden uns.';
+ document.getElementById('task').value=''; document.getElementById('result_type').value='';
+ setTimeout(()=>document.getElementById('msg').innerText='', 4000);
+};
+
+async function load(){
+ const code=localStorage.getItem('admin_code');
+ const r=await fetch('/api/orders',{headers:{'x-admin-code':code}});
+ if(r.status===401){ document.getElementById('list').innerText='Kein Zugang - bitte Code neu im Namensfeld eingeben'; return; }
+ const data=await r.json();
+ if(!data.length){ document.getElementById('list').innerHTML='<div style="text-align:center;padding:40px;color:#aaa">Keine offenen Aufträge 🎉</div>'; return; }
+ document.getElementById('list').innerHTML=data.map(o=>`
+   <div class="admin-card">
+     <div style="display:flex;justify-content:space-between"><b>${o.name}</b><small style="color:#999">${new Date(o.created_at).toLocaleString('de-DE')}</small></div>
+     <div style="margin:8px 0;color:#666;font-size:13px">📅 Benötigt am: ${o.date || 'kein Datum'} • 📦 Wunsch: ${o.result_type}</div>
+     <div style="background:#F8F6F3;padding:12px;border-radius:12px;font-size:14px;line-height:1.5">${o.task}</div>
+     <button class="deleteBtn" onclick="done(${o.id})">Auftrag abschließen ✓</button>
+   </div>`).join('');
+}
+async function done(id){ if(!confirm('Auftrag wirklich als erledigt markieren und aus der Liste löschen?')) return; const code=localStorage.getItem('admin_code'); await fetch('/api/orders/'+id,{method:'DELETE',headers:{'x-admin-code':code}}); load(); }
+</script>
+</body>
+</html>
