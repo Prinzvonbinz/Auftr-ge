@@ -46,7 +46,6 @@ button.main:active{transform:translateY(0)}
     <textarea id="task" placeholder="Beschreibe hier ganz genau was zu tun ist"></textarea>
     <div class="hint">Je genauer du es beschreibst, desto besser wird das Ergebnis.</div>
 
-
     <button id="btn" class="main">Fertig – Auftrag absenden</button>
     <div id="msg"></div>
   </div>
@@ -68,24 +67,31 @@ const adminView=document.getElementById('adminView');
 
 nameEl.addEventListener('input', async ()=>{
  if(nameEl.value.length<20) return;
- const r=await fetch('/api/check-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:nameEl.value})});
- const d=await r.json(); if(d.valid){ localStorage.setItem('admin_code',nameEl.value); showAdmin(); }
+ try{
+   const r=await fetch('/api/check-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:nameEl.value})});
+   const d=await r.json(); if(d.valid){ localStorage.setItem('admin_code',nameEl.value); showAdmin(); }
+ }catch(e){}
 });
 
-function showMain(){ mainView.style.display='block'; adminView.style.display='none'; document.querySelector('h1')?.scrollIntoView(); }
+function showMain(){ mainView.style.display='block'; adminView.style.display='none'; }
 function showAdmin(){ mainView.style.display='none'; adminView.style.display='block'; load(); }
 
 document.getElementById('btn').onclick=async()=>{
- const data={name:document.getElementById('name').value.trim(),date:document.getElementById('date').value,task:document.getElementById('task').value.trim(),result_type:document.getElementById('result_type').value.trim()};
+ const data={
+   name:document.getElementById('name').value.trim(),
+   date:document.getElementById('date').value,
+   task:document.getElementById('task').value.trim()
+ };
  if(!data.name) return alert('Bitte trage deinen Namen ein.');
  if(!data.task) return alert('Bitte beschreibe was gemacht werden soll.');
- if(!data.result_type) return alert('Bitte schreibe wie du das Ergebnis haben willst.');
- const r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
- const j=await r.json();
- if(j.redirect){ localStorage.setItem('admin_code',data.name); showAdmin(); return; }
- document.getElementById('msg').innerText='✅ Super, dein Auftrag wurde gesendet! Wir melden uns.';
- document.getElementById('task').value=''; document.getElementById('result_type').value='';
- setTimeout(()=>document.getElementById('msg').innerText='', 4000);
+ try{
+   const r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+   const j=await r.json();
+   if(j.redirect){ localStorage.setItem('admin_code',data.name); showAdmin(); return; }
+   document.getElementById('msg').innerText='✅ Super, dein Auftrag wurde gesendet! Wir melden uns.';
+   document.getElementById('task').value='';
+   setTimeout(()=>document.getElementById('msg').innerText='', 4000);
+ }catch(e){ alert('Fehler: '+e.message); }
 };
 
 async function load(){
@@ -97,7 +103,7 @@ async function load(){
  document.getElementById('list').innerHTML=data.map(o=>`
    <div class="admin-card">
      <div style="display:flex;justify-content:space-between"><b>${o.name}</b><small style="color:#999">${new Date(o.created_at).toLocaleString('de-DE')}</small></div>
-     <div style="margin:8px 0;color:#666;font-size:13px">📅 Benötigt am: ${o.date || 'kein Datum'} • 📦 Wunsch: ${o.result_type}</div>
+     <div style="margin:8px 0;color:#666;font-size:13px">📅 Benötigt am: ${o.date || 'kein Datum'}</div>
      <div style="background:#F8F6F3;padding:12px;border-radius:12px;font-size:14px;line-height:1.5">${o.task}</div>
      <button class="deleteBtn" onclick="done(${o.id})">Auftrag abschließen ✓</button>
    </div>`).join('');
